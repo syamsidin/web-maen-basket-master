@@ -1,0 +1,6 @@
+
+/* Select 2 custom */
+.select2-container--default.select2-container .select2-selection--multiple{
+    padding: 0.2rem 0.4rem 0.6rem;
+    border: var(--bs-border-width) solid var(--bs-border-color);
+}
