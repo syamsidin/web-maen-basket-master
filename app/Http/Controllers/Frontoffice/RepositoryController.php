@@ -12,20 +12,12 @@ class RepositoryController extends Controller
 {
     public function show($id)
     {
-        $item_per_category = ItemModel::where(['current_repository_id' => $id, 'is_deleted' => 0])
-        ->select('category_id', DB::raw('count(*) as total'))->groupBy('category_id')->get();
-
-        foreach($item_per_category as $group_category){
-            $category = CategoryItemModel::find($group_category->category_id);
-            $group_category['category_name'] = $category->name;
-        }
-
-        $item_per_category = $item_per_category->sortBy('category_name');
+        $items = ItemModel::where(['current_repository_id' => $id, 'is_deleted' => 0])->get();
 
         $data = [
-            "page_name" => "item",
+            "page_name" => "repository",
             "data" => RepositoryModel::find($id),
-            "item_per_category" => $item_per_category,
+            "items" => $items,
             "path_image" => "/show-file/images/repositories/"
         ];
 

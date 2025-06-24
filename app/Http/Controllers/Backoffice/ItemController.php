@@ -4,9 +4,15 @@ namespace App\Http\Controllers\Backoffice;
 
 use App\Http\Controllers\Controller;
 use App\Models\CategoryItemModel;
+use App\Models\FieldModel;
+use App\Models\ItemConditionModel;
+use App\Models\ItemImageModel;
 use App\Models\ItemModel;
+use App\Models\ItemOriginModel;
+use App\Models\ItemUnitModel;
 use App\Models\RepositoryItemModel;
 use App\Models\StatusItemModel;
+use DateTime;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -18,11 +24,7 @@ class ItemController extends Controller
 {
     public function index()
     {
-        $all_item = ItemModel::where(['current_status_id' => 1, 'is_deleted' => 0])->get();
-        foreach($all_item as $item){
-            // $item['qrcode'] = (string) QrCode::size(400)->generate(json_encode(['id' => $item->id]));
-            $item['qrcode'] = (string) QrCode::size(400)->generate(url('/item/' . $item->id));
-        }
+        $all_item = ItemModel::where(['is_deleted' => 0])->get();
 
         $data = [
             "page_name" => "item",
@@ -38,9 +40,10 @@ class ItemController extends Controller
         $data = [
             "page_name" => "item",
             "sub_page_name" => "used",
-            "categories" => CategoryItemModel::where(['is_deleted' => 0])->get(),
-            "category_has_pic_ids" => CategoryItemModel::where(['is_deleted' => 0, 'is_has_pic' => 1])->pluck('id')->toArray(),
-            "statuses" => StatusItemModel::whereIn('id', [1, 2])->get() // only take status aktif & non aktif
+            "fields" => FieldModel::where(['is_deleted' => 0])->get(),
+            "item_units" => ItemUnitModel::where(['is_deleted' => 0])->get(),
+            "item_origins" => ItemOriginModel::where(['is_deleted' => 0])->get(),
+            "item_conditions" => ItemConditionModel::where(['is_deleted' => 0])->get(),
         ];
 
         return view('pages/backoffice/item/add', $data);
@@ -49,48 +52,61 @@ class ItemController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            "category_id" => "required",
-            "status_id" => "required",
-            "code" => "required",
-            "register_number" => "required",
-            "name" => "required",
-            "year" => "required",
-            "owner_name" => "required"
+            "item_id" => "required",
+            "item_origin_id" => "required",
+            "item_condition_id" => "required",
+            "item_unit_id" => "required",
+            "entry_year" => "required",
+            "entry_date" => "required",
+            "price" => "required",
+            "qty" => "required",
+            "popular_name" => "required"
         ]);
-        
-        $category = CategoryItemModel::find($request->category_id);
-        $current_items_by_category = ItemModel::where(['category_id' => $category->id, 'is_deleted' => 0, 'current_status_id' => 1])->count();
-
-        if($current_items_by_category >= $category->max){
-            Alert::error('Gagal!', 'Barang pada kategori ini telah melebihi kuota!');
-            return redirect()->back()->withInput();
-        }
-
+    
         $new_id = (string) Str::uuid();
+        $regist_number = $this->generateRegistrationNumber();
+
         $new_data = [
             "id" => $new_id,
-            "category_id" => $request->category_id,
-            "current_status_id" => $request->status_id,
-            "code" => $request->code,
-            "register_number" => $request->register_number,
-            "name" => $request->name,
-            "year" => $request->year,
-            "owner_name" => $request->owner_name
+            "sub_sub_category_item_id" => $request->item_id,
+            "item_origin_id" => $request->item_origin_id,
+            "item_condition_id" => $request->item_condition_id,
+            "item_unit_id" => $request->item_unit_id,
+            "entry_year" => $request->entry_year,
+            "entry_date" => $request->entry_date,
+            "price" => $request->price,
+            "qty" => $request->qty,
+            "popular_name" => $request->popular_name,
+            "registration_number" => $regist_number
         ];
 
         if($request->pic_name){
             $new_data['pic_name'] = $request->pic_name;
         }
-        
-        $path = '/public/uploads/images/items/' . $new_id . '/';
 
-        if($request->img_file){
-            $file_name = $request->img_file->getClientOriginalName();
-            $request->img_file->storeAs($path, $file_name);
-            $new_data['img_filename'] = $file_name;
+        if($request->holder_name){
+            $new_data['holder_name'] = $request->holder_name;
         }
-
+        
         $new_data = ItemModel::create($new_data);
+
+        $path = '/public/uploads/images/items/'. $new_id . '/';
+        if($request->img_file){
+            $list_files = $request->img_file;
+            $list_files_desc = $request->img_desc;
+            foreach($list_files as $idx=>$file){
+                $file_name = $file->getClientOriginalName();
+                $file->storeAs($path, $file_name);
+
+                $new_id_img = (string) Str::uuid();
+                ItemImageModel::create([
+                    'id' => $new_id_img,
+                    'item_id' => $new_id,
+                    'file_name' => $file_name,
+                    'description' => $list_files_desc[$idx]
+                ]);
+            }
+        }
 
         if($new_data->exists){
             Alert::success('Berhasil!', 'Data barang berhasil ditambahkan!');
@@ -103,12 +119,15 @@ class ItemController extends Controller
         $data = [
             "page_name" => "item",
             "sub_page_name" => "used",
-            "categories" => CategoryItemModel::where(['is_deleted' => 0])->get(),
-            "category_has_pic_ids" => CategoryItemModel::where(['is_deleted' => 0, 'is_has_pic' => 1])->pluck('id')->toArray(),
-            "statuses" => StatusItemModel::whereIn('id', [1, 2])->get(), // only take status aktif & non aktif
+            "fields" => FieldModel::where(['is_deleted' => 0])->get(),
+            "item_units" => ItemUnitModel::where(['is_deleted' => 0])->get(),
+            "item_origins" => ItemOriginModel::where(['is_deleted' => 0])->get(),
+            "item_conditions" => ItemConditionModel::where(['is_deleted' => 0])->get(),
             "path_image" =>  "/backoffice/show-file/images/items/",
             "data" => ItemModel::find($id)
         ];
+
+        $data['field_name'] = $data['data']->sub_sub_category_item->sub_sub_category->sub_category->category->field->name;
 
         return view('pages/backoffice/item/edit', $data);
     }
@@ -116,46 +135,71 @@ class ItemController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            "category_id" => "required",
-            "status_id" => "required",
-            "code" => "required",
-            "register_number" => "required",
-            "name" => "required",
-            "year" => "required",
-            "owner_name" => "required"
+            "item_id" => "required",
+            "item_origin_id" => "required",
+            "item_condition_id" => "required",
+            "item_unit_id" => "required",
+            "entry_year" => "required",
+            "entry_date" => "required",
+            "price" => "required",
+            "qty" => "required",
+            "popular_name" => "required"
         ]);
-        
-        $category = CategoryItemModel::find($request->category_id);
-        $current_items_by_category = ItemModel::where(['category_id' => $category->id, 'is_deleted' => 0, 'current_status_id' => 1])->count();
-
-        if($current_items_by_category >= $category->max){
-            Alert::error('Gagal!', 'Barang pada kategori ini telah melebihi kuota!');
-            return redirect()->back()->withInput();
-        }
 
         $data = ItemModel::find($request->id);
 
         $new_data_Obj = [
-            "category_id" => $request->category_id,
-            "current_status_id" => $request->status_id,
-            "code" => $request->code,
-            "register_number" => $request->register_number,
-            "name" => $request->name,
-            "year" => $request->year,
-            "owner_name" => $request->owner_name
+            "sub_sub_category_item_id" => $request->item_id,
+            "item_origin_id" => $request->item_origin_id,
+            "item_condition_id" => $request->item_condition_id,
+            "item_unit_id" => $request->item_unit_id,
+            "entry_year" => $request->entry_year,
+            "entry_date" => $request->entry_date,
+            "price" => $request->price,
+            "qty" => $request->qty,
+            "popular_name" => $request->popular_name
         ];
 
         if($request->pic_name){
             $new_data_Obj['pic_name'] = $request->pic_name;
         }
+
+        if($request->holder_name){
+            $new_data_Obj['holder_name'] = $request->holder_name;
+        }
+        
         
         $path = '/public/uploads/images/items/'. $request->id . '/';;
-        if($request->img_file){
-            Storage::delete($path . $data->img_filename);
+        
+        $exist_items = ItemImageModel::where(['item_id' => $request->id])->pluck('id')->toArray();
+        $req_items = [];
+        if($request->img_file_exist_id){
+            $req_items = $request->img_file_exist_id;
+        }
+        $deleted_items = array_diff($exist_items, $req_items);
 
-            $file_name = $request->img_file->getClientOriginalName();
-            $request->img_file->storeAs($path, $file_name);
-            $new_data_Obj['img_filename'] = $file_name;
+        $list_files = $request->img_file;
+        $list_files_desc = $request->img_desc;
+        
+        foreach($deleted_items as $item_id){
+            $item = ItemImageModel::find($item_id);
+            Storage::delete($path . $item->file_name);
+            ItemImageModel::find($item->id)->delete();
+        }
+
+        if($list_files != null){
+            foreach($list_files as $idx=>$file){
+                $file_name = $file->getClientOriginalName();
+                $file->storeAs($path, $file_name);
+    
+                $new_id_img = (string) Str::uuid();
+                ItemImageModel::create([
+                    'id' => $new_id_img,
+                    'item_id' => $request->id,
+                    'file_name' => $file_name,
+                    'description' => $list_files_desc[$idx]
+                ]);
+            }
         }
 
         $updated_data = $data->update($new_data_Obj);
@@ -191,6 +235,18 @@ class ItemController extends Controller
         $data = json_encode($data);
 
         return $data;
+    }
+
+    
+    public function generateRegistrationNumber()
+    {
+        $year = date('Y');
+        $month = date('m');
+
+        $number = ItemModel::whereYear('created_at', $year)->whereMonth('created_at', $month)->count() + 1;
+        $number = str_pad($number, 4, '0', STR_PAD_LEFT);
+
+        return $year . $month . $number;
     }
 
 }

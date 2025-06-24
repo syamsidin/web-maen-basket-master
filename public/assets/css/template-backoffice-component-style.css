@@ -31,3 +31,7 @@
     --bs-btn-disabled-bg: #00AEEF;
     --bs-btn-disabled-border-color: #00AEEF;
 }
+
+.select2{
+    width: 100% !important;
+}

@@ -1,6 +1,12 @@
 @extends('layouts.backoffice.main')
 
 @section('container-backoffice')
+<style>
+    #bodyPreviewQR {
+        font-weight: 600;
+        font-size: 14pt;
+    }
+</style>
 <div class="container-fluid mt--6">
     <div class="row">
         <div class="col-12">
@@ -8,34 +14,43 @@
                 <div class="card-body">
                     <h5 class="card-title d-flex justify-content-between align-items-center">
                         Daftar Ruangan
-                        <a href="/backoffice/add-repository" class="btn btn-primary">Tambah</a>
+                        {{-- <a href="/backoffice/add-repository" class="btn btn-primary">Tambah</a> --}}
                     </h5>
-                    <table id="tabel-data" class="table datatable" width="100%" cellspacing="0">
-                        <thead>
-                            <tr>
-                                <th>Kode Lokasi</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($data as $key=>$item)
+                    <div class="table-responsive">
+                        <table id="tabel-data" class="table datatable" width="100%" cellspacing="0">
+                            <thead>
                                 <tr>
-                                    <td>{{ $item->code }}</td>
-                                    <td width="20%">
-                                        <button type="button" class="btn btn-sm btn-info datatable-viewQR-btn" data-bs-toggle="modal" data-bs-target="#exampleModal" data-qr="{{ $item }}">
-                                            Generate QR
-                                        </button>
-                                        <a href="/backoffice/edit-repository/{{ $item->id }}" class="btn btn-sm btn-secondary">Edit</a>
-                                        <form id="delete-item-{{$item->id}}" action="/backoffice/repository/{{ $item->id }}" method="POST" style="display:inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <a href="#" class="btn btn-sm btn-danger" onclick="deleteConfirm('delete-item-{{$item->id}}')" >Hapus</a>
-                                        </form>
-                                    </td>
+                                    <th class="text-center">No.</th>
+                                    <th>Kode Lokasi</th>
+                                    <th>Nama Lokasi</th>
+                                    <th>Gedung</th>
+                                    <th>Aksi</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach ($data as $key=>$item)
+                                    <tr>
+                                        <td class="text-center" width="5%">{{ ++$key }}</td>
+                                        <td>{{ $item->code }}</td>
+                                        <td>{{$item->name }}</td>
+                                        <td>{{$item->floor->building->name }}</td>
+    
+                                        <td width="30%">
+                                            <button type="button" class="btn btn-sm btn-info datatable-viewQR-btn" data-bs-toggle="modal" data-bs-target="#exampleModal" data-qr="{{ $item }}">
+                                                Generate QR
+                                            </button>
+                                            <a href="/backoffice/edit-repository/{{ $item->id }}" class="btn btn-sm btn-secondary">Edit</a>
+                                            <form id="delete-item-{{$item->id}}" action="/backoffice/repository/{{ $item->id }}" method="POST" style="display:inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <a href="#" class="btn btn-sm btn-danger" onclick="deleteConfirm('delete-item-{{$item->id}}')" >Hapus</a>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -50,12 +65,20 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row mt-2 text-center">
-                        <div class="col-md-12" id="bodyPreviewQR">
-                            <div id="previewQR" class="mb-3 mt-4"></div>
-                            <p class="font-weight-bold">
-                                <span id="previewQRCode">-</span>
+                    <div class="row mt-2 text-center" id="bodyPreviewQR">
+                        
+                        <div class="col-12 col-border-right d-flex justify-content-center align-items-center py-2 mb-4">
+                            <img src="{{ url('assets/images/logo-bpsdm-long.png') }}" alt="logo-bpsdm" width="50%">
+                        </div>
+                        <div class="col-md-12 mt-1">
+                            <p>REKAP DAFTAR DATA RUANGAN</p>
+                            <p>
+                                <span id="previewQRName">-</span>
                             </p>
+
+                            <div id="previewQR" class="mb-3 mt-4"></div>
+                            {{-- <p style="font-size: 18pt; font-weight: 700;">SCAN DISINI</p> --}}
+                            <img src="{{ url('assets/images/logo-bjb.png') }}" alt="logo-bjb" width="20%" class="mb-3">
                         </div>
                         <canvas id="canvas" hidden></canvas>
                     </div>
@@ -70,15 +93,33 @@
 </div>
 <script>
     $(document).ready(function(){
-        $('#tabel-data').DataTable();
+        $('#tabel-data').DataTable({
+            responsive: true
+        });
+    });
+
+    $.ajaxSetup({
+        async: false,
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            }
     });
 
     $(document).on('click', '.datatable-viewQR-btn', function(event) {
         event.preventDefault();
         const qr_data = $(this).data("qr");
 
-        $('#previewQR').html(qr_data.qrcode);
-        $('#previewQRCode').html(qr_data.code);
+        $('#previewQRName').html(qr_data.name);
+
+        $.ajax({
+            type:'GET',
+            url:`/backoffice/json/qr-code/repository/${qr_data.id}/`,
+            success:function(response){
+                const data = response.data
+                
+                $('#previewQR').html(data);
+            },
+        });
     });
 
     deleteConfirm = function(formId)

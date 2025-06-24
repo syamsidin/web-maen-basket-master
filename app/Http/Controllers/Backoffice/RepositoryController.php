@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Backoffice;
 
 use App\Http\Controllers\Controller;
+use App\Models\BuildingModel;
 use App\Models\ItemModel;
+use App\Models\RepositoryImageModel;
 use App\Models\RepositoryItemModel;
 use App\Models\RepositoryModel;
 use Illuminate\Http\Request;
@@ -16,14 +18,11 @@ class RepositoryController extends Controller
 {
     public function index()
     {
-        $all_repository = RepositoryModel::where(['is_deleted' => 0])->get();
-        foreach($all_repository as $repository){
-            $repository['qrcode'] = (string) QrCode::size(400)->generate(url('/repository/' . $repository->id));
-        }
+        $all_repository = RepositoryModel::where(['is_deleted' => 0])->orderBy('code')->get();
 
         $data = [
             "page_name" => "repository",
-            "sub_page_name" => "",
+            "sub_page_name" => "repository",
             "data" => $all_repository
         ];
 
@@ -34,8 +33,8 @@ class RepositoryController extends Controller
     {
         $data = [
             "page_name" => "repository",
-            "sub_page_name" => "",
-            "items" => ItemModel::where(['current_repository_id' => null, 'is_deleted' => 0])->orderBy('code')->get()
+            "sub_page_name" => "repository",
+            "items" => ItemModel::where(['current_repository_id' => null, 'is_deleted' => 0])->orderBy('sub_sub_category_item_id')->get(),
         ];
 
         return view('pages/backoffice/repository/add', $data);
@@ -44,39 +43,38 @@ class RepositoryController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            "code" => "required",
+            "selected_repository_id" => "required",
             "list_item" => "required",
         ]);
 
-        $new_id = (string) Str::uuid();
+        // $new_id = (string) Str::uuid();
 
-        $new_data = [
-            "id" => $new_id,
-            "code" => $request->code
-        ];
+        // $new_data = [
+        //     "id" => $new_id,
+        //     "code" => $request->code
+        // ];
         
-        $path = '/public/uploads/images/repositories/' . $new_id . '/';
+        // $path = '/public/uploads/images/repositories/' . $new_id . '/';
 
-        if($request->img_file){
-            $file_name = $request->img_file->getClientOriginalName();
-            $request->img_file->storeAs($path, $file_name);
-            $new_data['img_filename'] = $file_name;
-        }
+        // if($request->img_file){
+        //     $file_name = $request->img_file->getClientOriginalName();
+        //     $request->img_file->storeAs($path, $file_name);
+        //     $new_data['img_filename'] = $file_name;
+        // }
 
-        $new_data = RepositoryModel::create($new_data);
+        // $new_data = RepositoryModel::create($new_data);
 
+        $repository_id = $request->selected_repository_id;
         foreach($request->list_item as $item){
-            ItemModel::find($item)->update(['current_repository_id' => $new_id]);
+            ItemModel::find($item)->update(['current_repository_id' => $repository_id]);
             RepositoryItemModel::create([
-                'repository_id' => $new_id,
+                'repository_id' => $repository_id,
                 'item_id' => $item
             ]);
         }
 
-        if($new_data->exists){
-            Alert::success('Berhasil!', 'Data ruangan berhasil ditambahkan!');
-            return redirect('/backoffice/repository');
-        }
+        Alert::success('Berhasil!', 'Data ruangan berhasil ditambahkan!');
+        return redirect('/backoffice/repository');
     }
 
     
@@ -84,68 +82,85 @@ class RepositoryController extends Controller
     {
         $data = [
             "page_name" => "repository",
-            "sub_page_name" => "",
+            "sub_page_name" => "repository",
             "data" => RepositoryModel::find($id),
             "repository_item_ids" => ItemModel::where(['current_repository_id' => $id, 'is_deleted' => 0])->pluck('id')->toArray(),
             "path_image" =>  "/backoffice/show-file/images/repositories/",
             "items" => ItemModel::where(function ($query) use ($id) {
                             $query->where('current_repository_id', '=', null)
                                 ->orWhere('current_repository_id', '=', $id);
-                        })->where(['is_deleted' => 0])->orderBy('code')->get()
+                        })->where(['is_deleted' => 0])->orderBy('sub_sub_category_item_id')->get()
         ];
 
         return view('pages/backoffice/repository/edit', $data);
     }
 
-    
-    
     public function update(Request $request)
     {
         $request->validate([
-            "code" => "required",
             "list_item" => "required",
         ]);
 
-        $data = RepositoryModel::find($request->id);
-
-        $new_data_Obj = [
-            "code" => $request->code
-
+        $repository_obj = [
+            'name' => $request->repository_name
         ];
 
-        $path = '/public/uploads/images/repositories/' . $request->id . '/';
-
-        if($request->img_file){
-            Storage::delete($path . $data->img_filename);
-
-            $file_name = $request->img_file->getClientOriginalName();
-            $request->img_file->storeAs($path, $file_name);
-            $new_data_Obj['img_filename'] = $file_name;
-        }
-
-        $updated_data = $data->update($new_data_Obj);
+        $repository = RepositoryModel::find($request->id)->update($repository_obj);
         
-        $exist_items = RepositoryItemModel::where(['repository_id' => $request->id, 'is_deleted' => 0])->pluck('item_id')->toArray();
-        $deleted_items = array_diff($exist_items, $request->list_item);
-        $new_items = array_diff($request->list_item, $exist_items);
-
-        foreach($deleted_items as $item){
-            ItemModel::find($item)->update(['current_repository_id' => null]);
-            RepositoryItemModel::where(['repository_id' => $request->id, 'item_id' => $item, 'is_deleted' => 0])->update(['is_deleted' => 1]);
+        if($request->list_item){
+            $exist_items = RepositoryItemModel::where(['repository_id' => $request->id])->pluck('item_id')->toArray();
+            $deleted_items = array_diff($exist_items, $request->list_item);
+            $new_items = array_diff($request->list_item, $exist_items);
+    
+            foreach($deleted_items as $item){
+                ItemModel::find($item)->update(['current_repository_id' => null]);
+                RepositoryItemModel::where(['repository_id' => $request->id, 'item_id' => $item])->update(['is_deleted' => 1]);
+            }
+    
+            foreach($new_items as $item){
+                ItemModel::find($item)->update(['current_repository_id' => $request->id]);
+                RepositoryItemModel::create([
+                    'repository_id' => $request->id,
+                    'item_id' => $item
+                ]);
+            }    
         }
 
-        foreach($new_items as $item){
-            ItemModel::find($item)->update(['current_repository_id' => $request->id]);
-            RepositoryItemModel::create([
-                'repository_id' => $request->id,
-                'item_id' => $item
-            ]);
+        $path = '/public/uploads/images/repositories/'. $request->id . '/';;
+        
+        $exist_items = RepositoryImageModel::where(['repository_id' => $request->id])->pluck('id')->toArray();
+        $req_items = [];
+        if($request->img_file_exist_id){
+            $req_items = $request->img_file_exist_id;
+        }
+        $deleted_items = array_diff($exist_items, $req_items);
+
+        $list_files = $request->img_file;
+        $list_files_desc = $request->img_desc;
+        
+        foreach($deleted_items as $repository_id){
+            $item = RepositoryImageModel::find($repository_id);
+            Storage::delete($path . $item->file_name);
+            RepositoryImageModel::find($item->id)->delete();
         }
 
-        if($updated_data){
-            Alert::success('Berhasil!', 'Data ruangan berhasil diedit!');
-            return redirect('/backoffice/repository');
+        if($list_files != null){
+            foreach($list_files as $idx=>$file){
+                $file_name = $file->getClientOriginalName();
+                $file->storeAs($path, $file_name);
+    
+                $new_id_img = (string) Str::uuid();
+                RepositoryImageModel::create([
+                    'id' => $new_id_img,
+                    'repository_id' => $request->id,
+                    'file_name' => $file_name,
+                    'description' => $list_files_desc[$idx]
+                ]);
+            }
         }
+
+        Alert::success('Berhasil!', 'Data ruangan berhasil diedit!');
+        return redirect('/backoffice/repository');
     }
 
     public function delete(Request $request)

@@ -1,7 +1,7 @@
 <!-- ======= Footer ======= -->
 <footer id="footer" class="footer">
     <div class="copyright">
-        &copy; <strong><span>MAEN BASKET</span></strong>. BPSDM Provinsi Jawa Barat
+        &copy; <strong><span>MAIN BASKET</span></strong>. BPSDM Provinsi Jawa Barat
     </div>
     <div class="credits">
         <!-- All the links in the footer should remain intact. -->

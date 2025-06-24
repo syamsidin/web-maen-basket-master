@@ -13,21 +13,23 @@
 
                             <form action="/backoffice/repository" method="post" enctype="multipart/form-data">
                                 @csrf
+                                
                                 <div class="mb-3">
                                     <div class="row">
                                         <div class="col-12">
-                                            <label class="form-label">Kode Lokasi <span class="span-required">*</span></label>
-                                            <input type="text" class="form-control" name="code" id="code" placeholder="Tuliskan kode barang" required/>
+                                            <label class="form-label">Gedung</label>
+                                            <input type="text" class="form-control" name="building_name" id="building_name" value="{{ $data->floor->building->name }}" disabled/>
                                         </div>
                                     </div>
                                 </div>
+
                                 <div class="mb-3">
                                     <div class="row">
                                         <div class="col-12">
                                             <label class="form-label">Daftar Barang <span class="span-required">*</span></label>
                                             <select name="list_item[]" id="list_item" class="form-control" multiple="multiple">
                                                 @foreach ($items as $item)
-                                                    <option value="{{ $item->id }}">{{ $item->code }} - {{ $item->name }}</option>
+                                                    <option value="{{ $item->id }}">{{ $item->sub_sub_category_item->code }} - {{ $item->sub_sub_category_item->name }} ({{ $item->entry_date }})</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -54,7 +56,7 @@
 </div>
 <script type="text/javascript">
     $(document).ready(function(){
-        $('#list_item').select2()
-    });
+        $('#list_item').select2();
+    })
 </script>
 @endsection

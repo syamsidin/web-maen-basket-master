@@ -1,19 +1,24 @@
 @extends('layouts.frontoffice.main')
 
 @section('container-frontoffice')
-
+<style>
+    .img-gallery{
+        max-height: 25rem;
+        min-height: 20rem;
+    }
+</style>
 <!-- ======= About Us Section ======= -->
 <section id="about" class="about">
     <div class="container" data-aos="fade-up">
 
     <div class="section-header">
         <h2>Tentang Kami</h2>
-        <p>Manajement Barang dan Aset BPSDM Provinsi Jawa Barat</p>
+        <p>Manajemen Inventarisasi Barang dan Kelengkapan Aset</p>
     </div>
 
     <div class="row gy-4">
         <div class="col-lg-6">
-            <p><b>Aplikasi Maen Basket dapat Meningkatkan kapasitas dan skalabilitas sistem untuk mengelola barang dan aset dengan lebih efisien,  sistem penginputan inventarisasi barang dan aset di BPSDM. Memperkuat keamanan sistem inventarisasi untuk melindungi data.</b></p>
+            <p><b>Aplikasi Main Basket dapat Meningkatkan kapasitas dan skalabilitas sistem untuk mengelola barang dan aset dengan lebih efisien,  sistem penginputan inventarisasi barang dan aset di BPSDM. Memperkuat keamanan sistem inventarisasi untuk melindungi data.</b></p>
             <img src="{{ url('assets/images/frontoffice/about.jpg') }}" class="img-fluid rounded-4 mb-4" alt="">
             <div class="content">
                 <p>
@@ -64,28 +69,38 @@
         <div>
         <ul class="portfolio-flters">
             <li data-filter="*" class="filter-active">Semua</li>
-            {{-- <li data-filter=".filter-app">App</li>
-            <li data-filter=".filter-product">Product</li>
-            <li data-filter=".filter-branding">Branding</li>
-            <li data-filter=".filter-books">Books</li> --}}
-            @foreach ($category_items as $category)
-                <li data-filter=".filter-{{ $category->name }}">{{ $category->name }}</li>
+
+            @foreach ($category_gallery as $key=>$category)
+                <li data-filter=".filter-{{ $category }}">{{ $category }}</li>
             @endforeach
         </ul><!-- End Portfolio Filters -->
         </div>
 
         <div class="row gy-4 portfolio-container">
-            @foreach ($items as $item)
-            <div class="col-xl-4 col-md-6 portfolio-item filter-{{ $item->category->name }}">
-                <div class="portfolio-wrap">
-                <a href="#" data-gallery="portfolio-gallery-app" class="glightbox"><img src="{{ $path_image . $item->id . '/' . $item->img_filename }}" class="img-fluid" alt=""></a>
-                <div class="portfolio-info">
-                    <h4><a href="portfolio-details.html" title="More Details">{{ $item->name }}</a></h4>
-                    <p>{{ $item->code }}</p>
-                </div>
-                </div>
-            </div><!-- End Portfolio Item -->
-        @endforeach
+            @foreach ($item_images as $image)
+                <div class="col-xl-4 col-md-6 portfolio-item filter-Barang">
+                {{-- <div class="col-xl-4 col-md-6 portfolio-item filter-"> --}}
+                    <div class="portfolio-wrap">
+                    <a href="#" data-gallery="portfolio-gallery-app" class="glightbox"><img src="{{ $path_image_item . $image->item_id . '/' . $image->file_name }}" class="img-fluid img-gallery" alt=""></a>
+                    <div class="portfolio-info">
+                        <h4><a href="portfolio-details.html" title="More Details">{{ $image->item->popular_name }}</a></h4>
+                        <p>{{ $image->item->entry_year }}</p>
+                    </div>
+                    </div>
+                </div><!-- End Portfolio Item -->
+            @endforeach
+            @foreach ($repository_images as $image)
+                <div class="col-xl-4 col-md-6 portfolio-item filter-Ruangan">
+                {{-- <div class="col-xl-4 col-md-6 portfolio-item filter-"> --}}
+                    <div class="portfolio-wrap">
+                    <a href="#" data-gallery="portfolio-gallery-app" class="glightbox"><img src="{{ $path_image_repository . $image->repository_id . '/' . $image->file_name }}" class="img-fluid img-gallery" alt=""></a>
+                    <div class="portfolio-info">
+                        <h4><a href="portfolio-details.html" title="More Details">{{ $image->repository->name }}</a></h4>
+                        <p>{{ $image->repository->code }}</p>
+                    </div>
+                    </div>
+                </div><!-- End Portfolio Item -->
+            @endforeach
 
         </div><!-- End Portfolio Container -->
 
