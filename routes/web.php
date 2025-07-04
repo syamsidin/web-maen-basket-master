@@ -1,6 +1,6 @@
 <?php
 
-URL::forceRootUrl('https://mainbasket.bpsdmjabarapps.com');
+// URL::forceRootUrl('https://mainbasket.bpsdmjabarapps.com');
 
 use App\Http\Controllers\Backoffice\API\ItemController as APIItemController;
 use App\Http\Controllers\Backoffice\API\RepositoryController as APIRepositoryController;
@@ -69,7 +69,7 @@ Route::group(['middleware' => 'can:canAccessBackoffice'], function () {
     Route::get('/backoffice/floor', [FloorController::class, 'index']);
     Route::get('/backoffice/edit-floor/{id}', [FloorController::class, 'edit']);
     Route::put('/backoffice/floor', [FloorController::class, 'update']);
-    
+
     Route::get('/backoffice/category-item', [CategoryItemController::class, 'index']);
     Route::get('/backoffice/add-category-item', [CategoryItemController::class, 'create']);
     Route::post('/backoffice/category-item', [CategoryItemController::class, 'store']);
@@ -90,6 +90,7 @@ Route::group(['middleware' => 'can:canAccessBackoffice'], function () {
     Route::delete('/backoffice/not-used-item/{id}', [NotUsedItemController::class, 'delete']);
 
     Route::get('/backoffice/item/generate-qr/{id}', [ItemController::class, 'generateQRCode']);
+    Route::get('/backoffice/items/generate-qr/bulk', [ItemController::class, 'getBulkQRCodes']);
 
     Route::get('/backoffice/import/item', [ItemImportController::class, 'index']);
     Route::post('/backoffice/import/item', [ItemImportController::class, 'import']);
@@ -121,5 +122,4 @@ Route::group(['middleware' => 'can:canAccessBackoffice'], function () {
     Route::get('/backoffice/json/floors/{building_id}', [APIRepositoryController::class, 'get_floors']);
     Route::get('/backoffice/json/repositories/{floor_id}', [APIRepositoryController::class, 'get_repositories']);
     Route::get('/backoffice/json/repositories/detail/{id}', [APIRepositoryController::class, 'get_repository_detail']);
-
 });

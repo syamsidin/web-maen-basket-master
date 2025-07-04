@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RealRashid\SweetAlert\Facades\Alert;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Facades\Log;
 
 class ItemController extends Controller
 {
@@ -62,7 +63,7 @@ class ItemController extends Controller
             "qty" => "required",
             "popular_name" => "required"
         ]);
-    
+
         $new_id = (string) Str::uuid();
         $regist_number = $this->generateRegistrationNumber();
 
@@ -80,21 +81,21 @@ class ItemController extends Controller
             "registration_number" => $regist_number
         ];
 
-        if($request->pic_name){
+        if ($request->pic_name) {
             $new_data['pic_name'] = $request->pic_name;
         }
 
-        if($request->holder_name){
+        if ($request->holder_name) {
             $new_data['holder_name'] = $request->holder_name;
         }
-        
+
         $new_data = ItemModel::create($new_data);
 
-        $path = '/public/uploads/images/items/'. $new_id . '/';
-        if($request->img_file){
+        $path = '/public/uploads/images/items/' . $new_id . '/';
+        if ($request->img_file) {
             $list_files = $request->img_file;
             $list_files_desc = $request->img_desc;
-            foreach($list_files as $idx=>$file){
+            foreach ($list_files as $idx => $file) {
                 $file_name = $file->getClientOriginalName();
                 $file->storeAs($path, $file_name);
 
@@ -108,7 +109,7 @@ class ItemController extends Controller
             }
         }
 
-        if($new_data->exists){
+        if ($new_data->exists) {
             Alert::success('Berhasil!', 'Data barang berhasil ditambahkan!');
             return redirect('/backoffice/item');
         }
@@ -131,7 +132,7 @@ class ItemController extends Controller
 
         return view('pages/backoffice/item/edit', $data);
     }
-    
+
     public function update(Request $request)
     {
         $request->validate([
@@ -160,38 +161,38 @@ class ItemController extends Controller
             "popular_name" => $request->popular_name
         ];
 
-        if($request->pic_name){
+        if ($request->pic_name) {
             $new_data_Obj['pic_name'] = $request->pic_name;
         }
 
-        if($request->holder_name){
+        if ($request->holder_name) {
             $new_data_Obj['holder_name'] = $request->holder_name;
         }
-        
-        
-        $path = '/public/uploads/images/items/'. $request->id . '/';;
-        
+
+
+        $path = '/public/uploads/images/items/' . $request->id . '/';;
+
         $exist_items = ItemImageModel::where(['item_id' => $request->id])->pluck('id')->toArray();
         $req_items = [];
-        if($request->img_file_exist_id){
+        if ($request->img_file_exist_id) {
             $req_items = $request->img_file_exist_id;
         }
         $deleted_items = array_diff($exist_items, $req_items);
 
         $list_files = $request->img_file;
         $list_files_desc = $request->img_desc;
-        
-        foreach($deleted_items as $item_id){
+
+        foreach ($deleted_items as $item_id) {
             $item = ItemImageModel::find($item_id);
             Storage::delete($path . $item->file_name);
             ItemImageModel::find($item->id)->delete();
         }
 
-        if($list_files != null){
-            foreach($list_files as $idx=>$file){
+        if ($list_files != null) {
+            foreach ($list_files as $idx => $file) {
                 $file_name = $file->getClientOriginalName();
                 $file->storeAs($path, $file_name);
-    
+
                 $new_id_img = (string) Str::uuid();
                 ItemImageModel::create([
                     'id' => $new_id_img,
@@ -204,19 +205,19 @@ class ItemController extends Controller
 
         $updated_data = $data->update($new_data_Obj);
 
-        if($updated_data){
+        if ($updated_data) {
             Alert::success('Berhasil!', 'Data barang berhasil diedit!');
             return redirect('/backoffice/item');
         }
     }
-    
+
     public function delete(Request $request)
     {
         //soft delete
         $deleted_repository_item = RepositoryItemModel::where(['item_id' => $request->id])->update(['is_deleted' => 1]);
         $deleted_data = ItemModel::find($request->id)->update(['current_repository_id' => null, 'is_deleted' => 1]);
 
-        if($deleted_data){
+        if ($deleted_data) {
             Alert::success('Berhasil!', 'Data barang berhasil dihapus!');
             return redirect('/backoffice/item');
         }
@@ -237,7 +238,7 @@ class ItemController extends Controller
         return $data;
     }
 
-    
+
     public function generateRegistrationNumber()
     {
         $year = date('Y');
@@ -249,4 +250,24 @@ class ItemController extends Controller
         return $year . $month . $number;
     }
 
+    public function getBulkQRCodes(Request $request)
+    {
+        $ids = $request->input('ids', []);
+
+        $items = ItemModel::whereIn('id', $ids)->get();
+
+        $qrList = $items->map(function ($item) {
+            $data = (string) QrCode::size(400)->generate(url('/item/' . $item->id));
+            // $data = (string) QrCode::size(400)->generate(json_encode(['id' => $item->id]));
+            return [
+                'id' => $item->id,
+                'code' => $item->sub_sub_category_item->code,
+                'name' => $item->sub_sub_category_item->name,
+                'popular_name' => $item->popular_name,
+                'data' => $data
+            ];
+        });
+
+        return response()->json(['data' => $qrList]);
+    }
 }
